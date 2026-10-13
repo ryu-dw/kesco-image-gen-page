@@ -159,10 +159,13 @@
 const $ = (s) => document.querySelector(s);
 // API 서버 주소. 같은 서버에서 열면 비어 있고(상대 경로), GitHub Pages 처럼 따로 올린 경우
 // ?api=https://host:port 로 한 번 주면 localStorage 에 기억한다. 헤더의 입력란으로도 바꿀 수 있다.
+// 기본 API: 시연용 맥 서버. 페이지를 같은 서버(API 와 동일 출처)에서 열었으면 상대 경로를 쓴다.
+const DEFAULT_API = 'https://192.168.0.91:8443';
 const API = (() => {
   const q = new URLSearchParams(location.search).get('api');
   try { if (q !== null) localStorage.setItem('api_base', q); } catch (e) {}
-  let v = q; if (v === null) { try { v = localStorage.getItem('api_base') || ''; } catch (e) { v = ''; } }
+  let v = q; if (v === null) { try { v = localStorage.getItem('api_base'); } catch (e) { v = null; } }
+  if (v === null) v = (location.hostname.endsWith('github.io')) ? DEFAULT_API : '';
   return v.replace(/\/$/, '');
 })();
 const api = (p) => API + p;
@@ -260,7 +263,7 @@ async function init() {
   try { h = health = await (await fetch(api('/api/health'))).json(); }
   catch (e) {
     const st = $('#status'); st.className = 'status err';
-    st.textContent = 'API 서버에 연결하지 못했습니다. 위 헤더의 API 칸에 서버 주소(예: http://127.0.0.1:8090)를 넣고 적용을 누르세요.';
+    st.textContent = 'API 서버에 연결하지 못했습니다. 처음이면 새 탭에서 ' + api('/api/health') + ' 를 열어 인증서 경고를 지나간 뒤(고급 → 이동) 이 페이지를 새로고침하세요. 다른 서버를 쓰려면 헤더의 API 칸에 주소를 넣고 적용을 누르세요.';
     $('#backend').textContent = '생성 엔진: 연결 안 됨'; $('#backend').classList.add('warn'); $('#llm').textContent = '자동 배치: 연결 안 됨'; $('#llm').classList.add('warn');
     return;
   }
