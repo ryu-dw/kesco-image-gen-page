@@ -298,8 +298,11 @@ $('#autoBtn').onclick = async () => {
     const r = await fetch(api('/api/auto-layout'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const j = await r.json();
     if (!r.ok) throw new Error(j.detail || r.statusText);
+    // 틀 없는 자동 구성: 돌려받은 레이아웃을 임시 틀로 등록해 같은 화면 요소로 보여 준다
+    templates.freeform = { key: 'freeform', title: '자동 구성 (틀 없음)', description: '문구의 역할(제목·부제·라벨·기관명)과 위치 지시로 자리를 정했습니다. 라벨은 생성 후 그림의 빈자리를 찾아 올립니다.', scene_example: '', layout: j.layout };
+    if (!$('#tpl').querySelector('option[value=freeform]')) { const o = document.createElement('option'); o.value = 'freeform'; o.textContent = '자동 구성 (틀 없음)'; $('#tpl').appendChild(o); }
     const assigned = {}; j.layout.slots.forEach(s => assigned[s.id] = s.text);
-    loadTemplate(j.template, assigned);
+    loadTemplate('freeform', assigned);
     autoReady = true; showPlacement(true);
     note.className = 'note' + (j.method === 'rule' ? ' rule' : '');
     note.textContent = `${j.method === 'llm' ? '언어 모델이' : '규칙으로'} "${j.template_title}" 틀을 골랐습니다. ${j.reason}${j.note ? ' · ' + j.note : ''}`;
