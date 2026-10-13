@@ -94,12 +94,18 @@
         <svg id="sketch" viewBox="0 0 300 400"></svg>
         <p id="tpldesc"></p>
       </div>
-      <p class="hint">회색 그림은 문구가 들어갈 자리입니다. 말풍선·띠는 모델이 그 자리에 빈 모양을 그리고, 프로그램이 실제 위치를 찾아 글자를 넣습니다. 문구를 비우면 그 칸은 쓰지 않습니다.</p>
+      <p class="hint">회색 그림은 틀이 정한 문구 자리입니다. "자동" 배치에서는 큰 제목·부제·기관명은 위·아래에 그라데이션을 깔고 올리고, 말풍선 문구는 그림에서 덜 복잡한 자리를 찾아 꼬리 없는 라벨로 올립니다(틀의 자리는 선호 위치로만 씁니다). 문구를 비우면 그 칸은 쓰지 않습니다.</p>
 
       <label><b>4. 칸별 문구</b></label>
       <div id="texts"></div>
 
-      <label><b>5. 생성 엔진</b></label>
+      <label><b>5. 문구 배치</b></label>
+      <select id="placement">
+        <option value="auto">자동 — 그림의 빈자리를 찾아 글자를 올림 (말풍선 없음, 위·아래는 그라데이션 위 글자)</option>
+        <option value="fixed">틀 고정 — 틀의 자리·말풍선 모양 그대로</option>
+      </select>
+
+      <label><b>6. 생성 엔진</b></label>
       <select id="engine">
         <option value="space">공개 데모 (Qwen-Image-2.1, 1~3분, 하루 할당량 적음)</option>
         <option value="mock">시험용 (모델 없이 자리만 그림, 1초)</option>
@@ -321,6 +327,7 @@ $('#gen').onclick = async () => {
     seed: $('#seed').value === '' ? null : parseInt($('#seed').value),
     enhance: $('#enhance').value === 'true',
     backend: engine,
+    placement: $('#placement').value,
     use_negative: $('#useneg').value === 'true',
     true_cfg: $('#useneg').value === 'true' ? 4.0 : 1.0,
     translate_scene: $('#translate').value === '' ? null : $('#translate').value === 'true',
@@ -332,7 +339,7 @@ $('#gen').onclick = async () => {
     if (!r.ok) throw new Error(j.detail || r.statusText);
     $('#base').src = api(j.base_url); $('#final').src = api(j.final_url);
     $('#sceneUsed').textContent = j.scene_used || '—'; $('#prompt').textContent = j.prompt; $('#used').textContent = j.prompt_used;
-    $('#placed').textContent = j.placed.map(p => `${p.id.padEnd(14)} ${p.snapped ? '스냅' : '계획'} box=${p.box_px.join(',')} ${p.font_size}px ${p.lines}줄  "${p.text}"`).join('\n');
+    $('#placed').textContent = j.placed.map(p => `${p.id.padEnd(14)} ${(p.mode || (p.snapped ? '스냅' : '계획')).padEnd(16)} box=${p.box_px.join(',')} ${p.font_size}px ${p.lines}줄  "${p.text}"`).join('\n');
     $('#seed').value = j.seed;
     st.textContent = `완료: ${ENGINE_LABEL[j.backend] || j.backend} · seed ${j.seed} · ${j.elapsed_sec}초` + (j.notes && j.notes.length ? ' · ' + j.notes.join(' ') : '');
   } catch (e) {

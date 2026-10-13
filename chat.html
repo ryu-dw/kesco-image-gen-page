@@ -134,10 +134,10 @@ async function send(text) {
     const g = await post('/api/generate', { layout: plan.layout_result.layout, backend: engine, resolution: 1024, steps: 30, seed: null, enhance: true, use_negative: false, true_cfg: 1.0 });
     clearInterval(timer);
     const snapped = g.placed.filter(p => p.snapped).length, shaped = plan.layout_result.layout.slots.filter(s => s.shape !== 'none').length;
-    b2.innerHTML = `완성했습니다. ${engine === 'mock' ? '시험용 엔진' : engine === 'internal' ? '사내 서버' : '실제 모델'} · ${g.elapsed_sec}초 · seed ${g.seed}${shaped && engine !== 'internal' ? ` · 말풍선·띠 ${shaped}개 중 ${snapped}개는 그림에서 찾아 맞춤` : ''}${g.notes && g.notes.length ? ' · ' + esc(g.notes.join(' ')) : ''}` +
+    b2.innerHTML = `완성했습니다. ${engine === 'mock' ? '시험용 엔진' : engine === 'internal' ? '사내 서버' : '실제 모델'} · ${g.elapsed_sec}초 · seed ${g.seed}${shaped ? ` · 문구 ${shaped}개는 그림의 빈자리를 찾아 배치` : ''}${g.notes && g.notes.length ? ' · ' + esc(g.notes.join(' ')) : ''}` +
       `<div class="imgs" id="imgs-${g.job_id}"><figure><figcaption>한글 합성 결과</figcaption><img src="${api(g.final_url)}" alt=""></figure></div>` +
       `<div class="tools"><button data-toggle="${g.job_id}" data-base="${api(g.base_url)}">글자 없는 원본도 보기</button><a href="${api(g.final_url)}" download>결과 내려받기</a></div>` +
-      `<details class="placed"><summary>배치 정보 · 실제 사용된 프롬프트</summary><pre>${esc(g.placed.map(p => `${p.id.padEnd(14)} ${p.snapped ? '스냅' : '계획'} box=${p.box_px.join(',')} ${p.font_size}px ${p.lines}줄  "${p.text}"`).join('\n'))}\n\n${esc(g.prompt_used)}</pre></details>`;
+      `<details class="placed"><summary>배치 정보 · 실제 사용된 프롬프트</summary><pre>${esc(g.placed.map(p => `${p.id.padEnd(14)} ${(p.mode || '').padEnd(16)} box=${p.box_px.join(',')} ${p.font_size}px ${p.lines}줄  "${p.text}"`).join('\n'))}\n\n${esc(g.prompt_used)}</pre></details>`;
     b2.querySelector('[data-toggle]').onclick = (ev) => {
       const box = $('#imgs-' + ev.target.dataset.toggle);
       if (box.classList.toggle('two')) { const f = document.createElement('figure'); f.innerHTML = `<figcaption>모델 생성 원본 (글자 없음)</figcaption><img src="${ev.target.dataset.base}" alt="">`; box.prepend(f); ev.target.textContent = '원본 숨기기'; }
