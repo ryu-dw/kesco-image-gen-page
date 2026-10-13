@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>한글 포스터 생성 테스트</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#dde1e7; --text:#1d2330; --muted:#6b7280; --accent:#1565c0; --warn:#b45309; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:14px 20px; } header .sp { flex:1; } header { background:#0b1f4d; color:#fff; display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; } header span { font-size:12px; opacity:.8; }
+  main { display:grid; grid-template-columns: 440px 1fr; gap:16px; padding:16px; }
+  @media (max-width: 960px){ main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:12px 0 4px; }
+  label b { color:var(--text); font-weight:600; }
+  textarea, input, select { width:100%; font:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  textarea { min-height:120px; resize:vertical; }
+  .row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  button { font:inherit; padding:8px 14px; border-radius:6px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  .btns { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  .status { font-size:13px; margin-top:10px; color:var(--muted); min-height:18px; }
+  .status.err { color:#b91c1c; }
+  .results { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .results figure { margin:0; } .results img { width:100%; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  figcaption { font-size:12px; color:var(--muted); margin-bottom:6px; }
+  pre { white-space:pre-wrap; font-size:11.5px; background:#f8fafc; border:1px solid var(--line); border-radius:6px; padding:8px; max-height:220px; overflow:auto; }
+  .pill { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:#e8f0fe; color:var(--accent); margin-left:6px; }
+  .pill.warn { background:#fef3c7; color:var(--warn); }
+  .hint { font-size:12px; color:var(--muted); margin:6px 0 0; line-height:1.5; }
+  .modes { display:flex; gap:14px; font-size:13px; margin-top:4px; }
+  .modes label { display:flex; gap:6px; align-items:center; margin:0; color:var(--text); font-size:13px; cursor:pointer; }
+  .modes input { width:auto; margin:0; }
+  .pane { border:1px solid var(--line); border-radius:6px; padding:10px 12px 12px; margin-top:8px; background:#fafbfc; }
+  .pane label:first-child { margin-top:0; }
+  .tpl { display:grid; grid-template-columns: 150px 1fr; gap:12px; align-items:start; margin-top:6px; }
+  .tpl svg { width:100%; border:1px solid var(--line); border-radius:6px; background:#eef1f5; }
+  .tpl p { margin:0; font-size:12.5px; line-height:1.55; }
+  .slot { display:grid; grid-template-columns: 110px 1fr; gap:8px; align-items:center; margin-top:8px; }
+  .slot .name { font-size:12.5px; }
+  .slot .name small { display:block; color:var(--muted); font-size:11px; }
+  .note { font-size:12.5px; line-height:1.55; margin-top:8px; padding:8px 10px; border-radius:6px; background:#eef6ff; color:#0b3d7a; }
+  .note.rule { background:#fff7e6; color:#7c4a03; }
+  details { margin-top:14px; border-top:1px dashed var(--line); padding-top:8px; }
+  summary { font-size:12.5px; color:var(--muted); cursor:pointer; }
+  .adv textarea { font-family:ui-monospace,Menlo,monospace; font-size:11.5px; min-height:160px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>한글 포스터 생성 테스트</h1>
+  <span>장면 설명과 문구만 적으면 됩니다. 모델은 글자 없는 그림만 그리고, 한글은 프로그램이 글꼴로 올립니다.</span>
+    <label style="font-size:12px">API <input id="apiBase" placeholder="같은 서버" style="width:190px;font:inherit;font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid #3b4f82;background:#132a63;color:#fff"> <button id="apiApply" style="font:inherit;font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid #3b4f82;background:#132a63;color:#fff;cursor:pointer">적용</button></label>
+  <span id="backend" class="pill">생성 엔진: …</span>
+  <span id="llm" class="pill">자동 배치: …</span>
+</header>
+<main>
+  <section class="card">
+    <label><b>샘플 질의</b> <span class="hint" style="display:inline">(고르면 장면·틀·문구가 채워집니다)</span></label>
+    <select id="sample"><option value="">— 직접 입력 —</option></select>
+
+    <label><b>1. 장면 설명</b> <span class="hint" style="display:inline">(한국어, 글자 넣으라는 지시는 쓰지 마세요)</span></label>
+    <textarea id="scene"></textarea>
+    <p class="hint">틀을 고르면 예시가 채워집니다. 원하는 장면으로 바꿔 쓰세요.</p>
+
+    <label><b>2. 문구 자리 정하기</b></label>
+    <div class="modes">
+      <label><input type="radio" name="mode" value="tpl" checked> 틀 고르기</label>
+      <label><input type="radio" name="mode" value="auto"> 자동 배치 (문구만 적으면 언어 모델이 틀과 자리를 정함)</label>
+    </div>
+
+    <div id="tplPane" class="pane">
+      <label>틀</label>
+      <select id="tpl"></select>
+    </div>
+
+    <div id="autoPane" class="pane" hidden>
+      <label>넣을 문구 <span class="hint" style="display:inline">(한 줄에 하나, 중요한 것부터)</span></label>
+      <textarea id="autoTexts" style="min-height:90px"></textarea>
+      <div class="row" style="grid-template-columns:1fr auto; align-items:end">
+        <div><label>비율</label><select id="autoRatio"><option value="">자동</option><option value="3:4">세로 3:4</option><option value="16:9">가로 16:9</option><option value="1:1">정사각 1:1</option></select></div>
+        <div><button id="autoBtn">자리 정하기</button></div>
+      </div>
+      <div id="autoNote" class="note" hidden></div>
+      <p class="hint">언어 모델은 그림을 보지 않고 글만 봅니다. 장면 설명에 "왼쪽은 위험, 오른쪽은 안전"처럼 위치 단서를 적으면 더 잘 맞춥니다. 결과는 아래에서 고쳐 쓸 수 있습니다.</p>
+    </div>
+
+    <div id="placement">
+      <label id="placementTitle"><b>3. 문구 자리</b></label>
+      <div class="tpl">
+        <svg id="sketch" viewBox="0 0 300 400"></svg>
+        <p id="tpldesc"></p>
+      </div>
+      <p class="hint">회색 그림은 문구가 들어갈 자리입니다. 말풍선·띠는 모델이 그 자리에 빈 모양을 그리고, 프로그램이 실제 위치를 찾아 글자를 넣습니다. 문구를 비우면 그 칸은 쓰지 않습니다.</p>
+
+      <label><b>4. 칸별 문구</b></label>
+      <div id="texts"></div>
+
+      <label><b>5. 생성 엔진</b></label>
+      <select id="engine">
+        <option value="space">공개 데모 (Qwen-Image-2.1, 1~3분, 하루 할당량 적음)</option>
+        <option value="mock">시험용 (모델 없이 자리만 그림, 1초)</option>
+      </select>
+      <p class="hint" id="engineHint"></p>
+      <div class="btns">
+        <button id="preview">프롬프트 미리보기</button>
+        <button id="gen" class="primary">생성</button>
+      </div>
+    </div>
+    <p id="autoWait" class="hint" hidden>문구를 적고 <b>자리 정하기</b>를 누르면 여기에 정해진 자리와 칸별 문구가 나타납니다.</p>
+    <div id="status" class="status"></div>
+
+    <details>
+      <summary>고급 설정 (해상도 · 스텝 · 시드 · 프롬프트 보정)</summary>
+      <div class="row">
+        <div><label>해상도</label><select id="resolution"><option>1024</option><option>1536</option><option>2048</option></select></div>
+        <div><label>스텝</label><input id="steps" type="number" value="30" min="1" max="100"></div>
+        <div><label>시드 (비우면 랜덤)</label><input id="seed" type="number" placeholder="random"></div>
+      </div>
+      <div class="row">
+        <div><label>프롬프트 보정 (공개 데모만)</label><select id="enhance"><option value="true">켬</option><option value="false">끔</option></select></div>
+        <div><label>네거티브 프롬프트</label><select id="useneg"><option value="false">끔 (cfg 1.0)</option><option value="true">켬 (cfg 4.0)</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>장면 영어 번역</label><select id="translate"><option value="">엔진 기본 (사내=켬)</option><option value="true">켬</option><option value="false">끔</option></select></div>
+        <div><label>말풍선·띠 그리기</label><select id="drawShapes"><option value="">엔진 기본 (사내=프로그램)</option><option value="false">모델이 그리고 찾아 맞춤</option><option value="true">프로그램이 직접 그림</option></select></div>
+      </div>
+      <p class="hint">사내 서버의 Qwen-Image(20B 원본)는 프롬프트 보정기가 없어 한국어를 직역하고 말풍선 위치가 불안정합니다. 그래서 사내 엔진은 기본으로 장면을 영어로 번역하고 말풍선·띠를 프로그램이 그립니다.</p>
+    </details>
+    <details class="adv">
+      <summary>개발자용: 보낼 레이아웃 JSON (직접 고쳐서 보낼 수 있음)</summary>
+      <label><input type="checkbox" id="useJson" style="width:auto"> 아래 JSON 을 그대로 사용 (틀·문구 입력 무시)</label>
+      <textarea id="json"></textarea>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="results">
+      <figure><figcaption>1. 모델 생성 원본 (글자 없음)</figcaption><img id="base" alt=""></figure>
+      <figure><figcaption>2. 한글 합성 결과</figcaption><img id="final" alt=""></figure>
+    </div>
+    <label>실제 보낸 장면 <span class="hint" style="display:inline">(번역했으면 영어)</span></label><pre id="sceneUsed">—</pre>
+    <label>보낸 프롬프트</label><pre id="prompt">—</pre>
+    <label>실제 사용된 프롬프트 (보정 후)</label><pre id="used">—</pre>
+    <label>배치 정보 <span class="hint" style="display:inline">(스냅 = 그림에서 모양을 찾아 맞춤 · 계획 = 틀의 자리 그대로)</span></label><pre id="placed">—</pre>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+// API 서버 주소. 같은 서버에서 열면 비어 있고(상대 경로), GitHub Pages 처럼 따로 올린 경우
+// ?api=https://host:port 로 한 번 주면 localStorage 에 기억한다. 헤더의 입력란으로도 바꿀 수 있다.
+const API = (() => {
+  const q = new URLSearchParams(location.search).get('api');
+  try { if (q !== null) localStorage.setItem('api_base', q); } catch (e) {}
+  let v = q; if (v === null) { try { v = localStorage.getItem('api_base') || ''; } catch (e) { v = ''; } }
+  return v.replace(/\/$/, '');
+})();
+const api = (p) => API + p;
+let templates = {}, samples = {}, health = null;
+const RATIO = { "1:1":[1,1], "4:3":[4,3], "3:4":[3,4], "3:2":[3,2], "2:3":[2,3], "16:9":[16,9], "9:16":[9,16] };
+
+// 틀의 문구 자리를 간단한 그림으로 보여준다 (문구가 비어 있는 칸은 그리지 않는다)
+function drawSketch(layout) {
+  const [rw, rh] = RATIO[layout.ratio] || [3, 4];
+  const W = 300, H = Math.round(300 * rh / rw);
+  const svg = $('#sketch'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = '';
+  const el = (n, a, txt) => { const e = document.createElementNS('http://www.w3.org/2000/svg', n); for (const k in a) e.setAttribute(k, a[k]); if (txt) e.textContent = txt; svg.appendChild(e); return e; };
+  el('rect', { x: 0, y: 0, width: W, height: H, fill: '#dfe4ea' });
+  layout.slots.forEach(s => {
+    const [x, y, w, h] = s.box.map((v, i) => v * (i % 2 ? H : W));
+    if (s.shape === 'bubble') el('rect', { x, y, width: w, height: h, rx: Math.min(h / 2, 14), fill: s.shape_color, stroke: '#fff', 'stroke-width': 1.5 });
+    else if (s.shape === 'banner') el('rect', { x, y, width: w, height: h, fill: s.shape_color });
+    else el('rect', { x, y, width: w, height: h, fill: 'rgba(255,255,255,.55)', stroke: '#94a3b8', 'stroke-dasharray': '4 3' });
+    const dark = s.shape !== 'none';
+    el('text', { x: x + w / 2, y: y + h / 2 + 4, 'text-anchor': 'middle', 'font-size': Math.max(9, Math.min(12, h * 0.5)), fill: dark ? '#fff' : '#334155' }, s.label || s.id);
+  });
+}
+
+// 칸별 문구 입력란을 만든다. texts 에 없는 칸은 틀의 예시 문구로 채운다 (null 이면 비움)
+function renderSlots(t, texts) {
+  const box = $('#texts'); box.innerHTML = '';
+  t.layout.slots.forEach(s => {
+    const d = document.createElement('div'); d.className = 'slot';
+    const kind = s.shape === 'bubble' ? '말풍선' : s.shape === 'banner' ? '띠' : '맨 글자';
+    const v = texts ? (texts[s.id] || '') : s.text;
+    d.innerHTML = `<div class="name">${s.label || s.id}<small>${kind}</small></div><input data-id="${s.id}" value="${v.replace(/"/g, '&quot;')}">`;
+    box.appendChild(d);
+  });
+  box.querySelectorAll('input').forEach(i => i.addEventListener('input', refresh));
+}
+
+function loadTemplate(key, texts) {
+  const t = templates[key]; if (!t) return;
+  $('#tpl').value = key;
+  $('#tpldesc').textContent = (texts ? '자동으로 정한 배치 (' + t.title + ' 구성) — ' : t.title + ' — ') + t.description;
+  // 사용자가 장면을 직접 고쳐 썼으면 덮어쓰지 않는다
+  const sc = $('#scene').value.trim();
+  if (!texts && (!sc || Object.values(templates).some(x => x.scene_example === sc))) $('#scene').value = t.scene_example;
+  renderSlots(t, texts);
+  $('#useJson').checked = false;
+  refresh();
+}
+
+// 틀 + 사용자 입력 → 서버에 보낼 레이아웃. 문구가 빈 칸은 뺀다
+function buildLayout() {
+  const t = templates[$('#tpl').value];
+  const texts = {}; $('#texts').querySelectorAll('input').forEach(i => texts[i.dataset.id] = i.value.trim());
+  const layout = JSON.parse(JSON.stringify(t.layout));
+  layout.scene = $('#scene').value;
+  layout.slots = layout.slots.filter(s => texts[s.id]).map(s => ({ ...s, text: texts[s.id] }));
+  return layout;
+}
+function refresh() { const l = buildLayout(); drawSketch(l); $('#json').value = JSON.stringify(l, null, 2); }
+function currentLayout() {
+  if ($('#useJson').checked) return JSON.parse($('#json').value);
+  const l = buildLayout(); $('#json').value = JSON.stringify(l, null, 2); return l;
+}
+
+let autoReady = false;  // 자동 배치에서 '자리 정하기' 결과가 있는가
+function showPlacement(show) { $('#placement').hidden = !show; $('#autoWait').hidden = show; }
+function setMode(m) {
+  $('#tplPane').hidden = m !== 'tpl';
+  $('#autoPane').hidden = m !== 'auto';
+  if (m === 'tpl') { loadTemplate($('#tpl').value); showPlacement(true); return; }
+  if (!$('#autoTexts').value.trim()) {
+    // 현재 틀의 예시 문구를 출발점으로 준다
+    $('#autoTexts').value = Array.from($('#texts').querySelectorAll('input')).map(i => i.value.trim()).filter(Boolean).join('\n');
+  }
+  autoReady = false; $('#autoNote').hidden = true;
+  showPlacement(false);
+}
+
+const ENGINE_LABEL = { internal: '사내 서버 (Qwen-Image, 10~60초)', local: '사내 GPU 직접 실행 (Qwen-Image-2.1)', space: '공개 데모 (Qwen-Image-2.1)', mock: '시험용 (모델 없음)' };
+const ENGINE_HINT = { internal: '사내 vllm-omni 서버의 Qwen/Qwen-Image 를 호출합니다. 장면은 영어로 번역하고 말풍선·띠는 프로그램이 그립니다 (고급 설정에서 바꿀 수 있음).',
+  space: 'Hugging Face 공개 데모를 호출합니다. 하루 무료 할당량이 적어 2~3장이면 소진됩니다.', mock: '모델 없이 자리와 합성만 확인합니다.', local: '이 서버의 GPU 에서 diffusers 로 직접 실행합니다.' };
+
+function loadSample(key) {
+  const smp = samples[key]; if (!smp) return;
+  $('#scene').value = smp.scene;
+  document.querySelector('input[name=mode][value=tpl]').checked = true; setMode('tpl');
+  loadTemplate(smp.template, smp.texts);
+  $('#tpldesc').textContent = templates[smp.template].title + ' — ' + templates[smp.template].description;
+  $('#autoTexts').value = Object.values(smp.texts).join('\n');
+  $('#autoRatio').value = smp.ratio;
+  refresh();
+}
+
+async function init() {
+  let h;
+  try { h = health = await (await fetch(api('/api/health'))).json(); }
+  catch (e) {
+    const st = $('#status'); st.className = 'status err';
+    st.textContent = 'API 서버에 연결하지 못했습니다. 위 헤더의 API 칸에 서버 주소(예: http://127.0.0.1:8090)를 넣고 적용을 누르세요.';
+    $('#backend').textContent = '생성 엔진: 연결 안 됨'; $('#backend').classList.add('warn'); $('#llm').textContent = '자동 배치: 연결 안 됨'; $('#llm').classList.add('warn');
+    return;
+  }
+  const eng = $('#engine');
+  if (h.available.includes('local')) { const o = document.createElement('option'); o.value = 'local'; o.textContent = '실제 모델 (' + ENGINE_LABEL.local + ')'; eng.prepend(o); }
+  if (h.available.includes('internal')) { const o = document.createElement('option'); o.value = 'internal'; o.textContent = '실제 모델 (' + ENGINE_LABEL.internal + ')'; eng.prepend(o); }
+  // 기본 엔진: 사내 서버가 있으면 사내, 아니면 설정값
+  eng.value = h.available.includes('internal') ? 'internal' : (h.available.includes(h.backend) ? h.backend : 'mock');
+  const engLabel = () => { $('#backend').textContent = '생성 엔진: ' + ENGINE_LABEL[eng.value]; $('#engineHint').textContent = ENGINE_HINT[eng.value]; $('#backend').classList.toggle('warn', eng.value === 'mock'); };
+  eng.onchange = engLabel; engLabel();
+  const sl = await (await fetch(api('/api/samples'))).json();
+  const ss = $('#sample');
+  sl.forEach(x => { samples[x.key] = x; const o = document.createElement('option'); o.value = x.key; o.textContent = x.title; ss.appendChild(o); });
+  ss.onchange = () => loadSample(ss.value);
+  $('#llm').textContent = '자동 배치: ' + (h.llm ? '언어 모델' : '규칙만 (LLM 설정 없음)');
+  if (!h.llm) $('#llm').classList.add('warn');
+  const list = await (await fetch(api('/api/presets'))).json();
+  const sel = $('#tpl');
+  list.forEach(t => { templates[t.key] = t; const o = document.createElement('option'); o.value = t.key; o.textContent = t.title; sel.appendChild(o); });
+  sel.onchange = () => loadTemplate(sel.value);
+  $('#scene').addEventListener('input', refresh);
+  document.querySelectorAll('input[name=mode]').forEach(r => r.onchange = () => setMode(r.value));
+  ['#autoTexts', '#autoRatio'].forEach(sel => $(sel).addEventListener('input', () => { if (autoReady) { autoReady = false; showPlacement(false); $('#autoNote').hidden = true; } }));
+  loadTemplate(sel.value);
+  if (sl.length) { ss.value = sl[0].key; loadSample(sl[0].key); }
+}
+
+$('#autoBtn').onclick = async () => {
+  const texts = $('#autoTexts').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const note = $('#autoNote'); note.hidden = false; note.className = 'note';
+  if (!texts.length) { note.textContent = '문구를 한 줄 이상 적어 주세요.'; return; }
+  note.textContent = '자리 정하는 중…'; $('#autoBtn').disabled = true;
+  try {
+    const body = { scene: $('#scene').value, texts, ratio: $('#autoRatio').value || null };
+    const r = await fetch(api('/api/auto-layout'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || r.statusText);
+    const assigned = {}; j.layout.slots.forEach(s => assigned[s.id] = s.text);
+    loadTemplate(j.template, assigned);
+    autoReady = true; showPlacement(true);
+    note.className = 'note' + (j.method === 'rule' ? ' rule' : '');
+    note.textContent = `${j.method === 'llm' ? '언어 모델이' : '규칙으로'} "${j.template_title}" 틀을 골랐습니다. ${j.reason}${j.note ? ' · ' + j.note : ''}`;
+  } catch (e) {
+    note.className = 'note rule'; note.textContent = '실패: ' + e.message;
+  } finally { $('#autoBtn').disabled = false; }
+};
+
+$('#preview').onclick = async () => {
+  const r = await fetch(api('/api/prompt'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentLayout()) });
+  $('#prompt').textContent = (await r.json()).prompt;
+};
+$('#gen').onclick = async () => {
+  const st = $('#status'); st.className = 'status';
+  const engine = $('#engine').value; $('#backend').classList.toggle('warn', engine === 'mock');
+  const t0 = Date.now();
+  const tick = () => { st.textContent = (engine === 'mock' ? '생성 중…' : engine === 'internal' ? '사내 서버로 생성 중… 보통 10~60초 걸립니다' : '실제 모델로 생성 중… 보통 1~3분 걸립니다') + ` (${Math.round((Date.now() - t0) / 1000)}초)`; };
+  tick(); const timer = setInterval(tick, 1000);
+  $('#gen').disabled = true;
+  let layout;
+  try { layout = currentLayout(); } catch (e) { st.className = 'status err'; st.textContent = 'JSON 오류: ' + e.message; $('#gen').disabled = false; return; }
+  const body = {
+    layout,
+    resolution: parseInt($('#resolution').value), steps: parseInt($('#steps').value),
+    seed: $('#seed').value === '' ? null : parseInt($('#seed').value),
+    enhance: $('#enhance').value === 'true',
+    backend: engine,
+    use_negative: $('#useneg').value === 'true',
+    true_cfg: $('#useneg').value === 'true' ? 4.0 : 1.0,
+    translate_scene: $('#translate').value === '' ? null : $('#translate').value === 'true',
+    draw_shapes: $('#drawShapes').value === '' ? null : $('#drawShapes').value === 'true',
+  };
+  try {
+    const r = await fetch(api('/api/generate'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || r.statusText);
+    $('#base').src = api(j.base_url); $('#final').src = api(j.final_url);
+    $('#sceneUsed').textContent = j.scene_used || '—'; $('#prompt').textContent = j.prompt; $('#used').textContent = j.prompt_used;
+    $('#placed').textContent = j.placed.map(p => `${p.id.padEnd(14)} ${p.snapped ? '스냅' : '계획'} box=${p.box_px.join(',')} ${p.font_size}px ${p.lines}줄  "${p.text}"`).join('\n');
+    $('#seed').value = j.seed;
+    st.textContent = `완료: ${ENGINE_LABEL[j.backend] || j.backend} · seed ${j.seed} · ${j.elapsed_sec}초` + (j.notes && j.notes.length ? ' · ' + j.notes.join(' ') : '');
+  } catch (e) {
+    st.className = 'status err'; st.textContent = '실패: ' + e.message;
+  } finally { clearInterval(timer); $('#gen').disabled = false; }
+};
+$('#apiBase').value = API; $('#apiApply').onclick = () => { location.search = '?api=' + encodeURIComponent($('#apiBase').value.trim()); };
+init();
+</script>
+</body>
+</html>

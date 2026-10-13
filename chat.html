@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>포스터 대화 생성</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#dde1e7; --text:#1d2330; --muted:#6b7280; --accent:#1565c0; --warn:#b45309; --user:#e8f0fe; }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif; background:var(--bg); color:var(--text); display:flex; flex-direction:column; }
+  header { padding:12px 20px; background:#0b1f4d; color:#fff; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0; } header a { color:#cfe0ff; font-size:12px; }
+  header .sp { flex:1; }
+  header select { font:inherit; font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid #3b4f82; background:#132a63; color:#fff; }
+  .pill { font-size:11px; padding:2px 8px; border-radius:999px; background:#e8f0fe; color:var(--accent); }
+  .pill.warn { background:#fef3c7; color:var(--warn); }
+  #log { flex:1; overflow:auto; padding:18px 0 8px; }
+  .wrap { max-width: 860px; margin:0 auto; padding:0 16px; }
+  .msg { display:flex; gap:10px; margin:0 0 14px; }
+  .msg .who { width:34px; height:34px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; }
+  .msg.user .who { background:#0b1f4d; color:#fff; } .msg.bot .who { background:#dbe7ff; color:#0b1f4d; }
+  .bubble { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 14px; max-width: 100%; line-height:1.6; font-size:14px; white-space:pre-wrap; }
+  .msg.user .bubble { background:var(--user); border-color:#c7d7f7; }
+  .bubble.err { border-color:#fecaca; background:#fff5f5; color:#991b1b; }
+  .bubble .plan, .bubble .imgs, .bubble .tools, .bubble details { white-space:normal; }
+  .plan { font-size:13px; margin-top:6px; }
+  .plan ul { margin:4px 0 0 18px; padding:0; } .plan li { margin:2px 0; }
+  .plan .meta { color:var(--muted); font-size:12px; margin-top:6px; }
+  .imgs { display:grid; grid-template-columns:1fr; gap:8px; margin-top:8px; }
+  .imgs.two { grid-template-columns:1fr 1fr; }
+  .imgs img { width:100%; border:1px solid var(--line); border-radius:8px; background:#fff; display:block; }
+  .imgs figcaption { font-size:11.5px; color:var(--muted); margin-bottom:4px; }
+  .tools { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .tools button, .tools a { font:inherit; font-size:12px; padding:4px 10px; border-radius:6px; border:1px solid var(--line); background:#fff; color:var(--text); cursor:pointer; text-decoration:none; }
+  .wait { color:var(--muted); font-size:13px; }
+  .wait::before { content:"●"; display:inline-block; margin-right:6px; animation:blink 1s infinite; color:var(--accent); }
+  @keyframes blink { 50% { opacity:.2; } }
+  details.placed { margin-top:6px; } details.placed summary { font-size:12px; color:var(--muted); cursor:pointer; }
+  pre { white-space:pre-wrap; font-size:11.5px; background:#f8fafc; border:1px solid var(--line); border-radius:6px; padding:8px; margin:6px 0 0; }
+  footer { border-top:1px solid var(--line); background:var(--card); padding:10px 0 14px; }
+  .composer { display:flex; gap:8px; align-items:flex-end; }
+  textarea { flex:1; font:inherit; font-size:14px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; resize:none; min-height:48px; max-height:160px; }
+  #send { font:inherit; padding:10px 18px; border-radius:10px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; height:48px; }
+  #send:disabled { opacity:.5; cursor:default; }
+  .hint { font-size:12px; color:var(--muted); margin:6px 0 0; }
+  .examples { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .examples button { font:inherit; font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--line); background:#fff; cursor:pointer; color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>포스터 대화 생성</h1>
+  <a href="./">틀·자동 배치 테스트 페이지로</a>
+  <span class="sp"></span>
+  <label style="font-size:12px">API <input id="apiBase" placeholder="같은 서버" style="width:190px;font:inherit;font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid #3b4f82;background:#132a63;color:#fff"> <button id="apiApply" style="font:inherit;font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid #3b4f82;background:#132a63;color:#fff;cursor:pointer">적용</button></label>
+  <label style="font-size:12px">엔진 <select id="engine"><option value="space">공개 데모 (1~3분)</option><option value="mock">시험용 (자리만, 1초)</option></select></label>
+  <label style="font-size:12px">비율 <select id="ratio"><option value="">자동</option><option value="3:4">세로 3:4</option><option value="16:9">가로 16:9</option><option value="1:1">정사각 1:1</option></select></label>
+  <span id="llm" class="pill">문구 뽑기: …</span>
+</header>
+
+<div id="log"><div class="wrap" id="logInner">
+  <div class="msg bot"><div class="who">AI</div><div class="bubble">만들고 싶은 포스터의 장면을 말로 적어 주세요. 제가 문구를 뽑고 자리를 정한 뒤 그림을 만들어 드립니다.
+예) "저녁 거실, 왼쪽은 문어발 콘센트에서 불꽃이 튀는 위험한 모습, 오른쪽은 개별 스위치 멀티탭을 쓰는 안전한 가족. 전기안전 캠페인 포스터."
+문구를 직접 정하고 싶으면 글 안에 큰따옴표로 적어 주세요. 그대로 씁니다.</div></div>
+</div></div>
+
+<footer><div class="wrap">
+  <div class="composer">
+    <textarea id="input" rows="2" placeholder="장면을 설명해 주세요. Enter 로 보내고, Shift+Enter 로 줄을 바꿉니다."></textarea>
+    <button id="send">보내기</button>
+  </div>
+  <div class="examples">
+    <button data-ex="밝은 주방에서 사람 손이 전기 주전자 플러그를 콘센트에서 뽑는 순간을 클로즈업. 창으로 아침 햇살. 다 쓴 가전은 플러그를 뽑자는 메시지.">주방 플러그</button>
+    <button data-ex="겨울 거실, 전기장판 위에서 담요 덮고 차 마시는 여성과 고양이. 전기장판은 접지 말고 펴서 쓰고 외출할 땐 끄자는 겨울철 전기안전 캠페인. 정사각형 SNS 카드.">겨울 전기장판</button>
+    <button data-ex="한국전기안전공사 점검원이 아파트 복도 분전반을 점검하는 모습. 왼쪽 절반은 파란 벽으로 비워 둠. 정기 점검으로 전기화재를 예방하자, 무료 점검 신청. 가로 배너.">점검 배너</button>
+  </div>
+</div></footer>
+
+<script>
+const $ = (s) => document.querySelector(s);
+// API 서버 주소. 같은 서버에서 열면 비어 있고(상대 경로), GitHub Pages 처럼 따로 올린 경우
+// ?api=https://host:port 로 한 번 주면 localStorage 에 기억한다. 헤더의 입력란으로도 바꿀 수 있다.
+const API = (() => {
+  const q = new URLSearchParams(location.search).get('api');
+  try { if (q !== null) localStorage.setItem('api_base', q); } catch (e) {}
+  let v = q; if (v === null) { try { v = localStorage.getItem('api_base') || ''; } catch (e) { v = ''; } }
+  return v.replace(/\/$/, '');
+})();
+const api = (p) => API + p;
+let busy = false, previous = null, health = null;
+
+function add(role, html, cls) {
+  const d = document.createElement('div'); d.className = 'msg ' + role;
+  d.innerHTML = `<div class="who">${role === 'user' ? '나' : 'AI'}</div><div class="bubble${cls ? ' ' + cls : ''}">${html}</div>`;
+  $('#logInner').appendChild(d); $('#log').scrollTop = $('#log').scrollHeight;
+  return d.querySelector('.bubble');
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const post = async (path, body) => {
+  const r = await fetch(api(path), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json(); if (!r.ok) throw new Error(j.detail || r.statusText); return j;
+};
+
+function planHtml(p) {
+  const lr = p.layout_result;
+  const slots = lr.layout.slots.map(s => `<li><b>${esc(s.label || s.id)}</b> (${s.shape === 'bubble' ? '말풍선' : s.shape === 'banner' ? '띠' : '맨 글자'}): ${esc(s.text)}</li>`).join('');
+  return `${esc(p.reply)}<div class="plan">` +
+    `<div style="margin-top:6px"><b>장면</b>: ${esc(p.scene)}</div>` +
+    `<div style="margin-top:6px"><b>문구 자리</b> — ${esc(lr.template_title)}${lr.method === 'rule' ? ' (규칙으로 배치)' : ''}</div><ul>${slots}</ul>` +
+    `<div class="meta">${esc(lr.reason)}${lr.note ? ' · ' + esc(lr.note) : ''}${p.copy_method === 'rule' ? ' · 문구는 규칙으로 뽑음' : ''}</div></div>`;
+}
+
+async function send(text) {
+  if (busy || !text.trim()) return;
+  busy = true; $('#send').disabled = true;
+  add('user', esc(text));
+  const engine = $('#engine').value;
+  let plan;
+  const b1 = add('bot', '<span class="wait">문구를 뽑고 자리를 정하는 중…</span>');
+  try {
+    plan = await post('/api/chat/plan', { message: text, ratio: $('#ratio').value || null, previous });
+    previous = { scene: plan.scene, texts: plan.texts, reply: plan.reply, copy_method: plan.copy_method, layout_result: plan.layout_result };
+    b1.innerHTML = planHtml(plan);
+  } catch (e) {
+    b1.className = 'bubble err'; b1.textContent = '문구·배치 단계에서 실패했습니다: ' + e.message;
+    busy = false; $('#send').disabled = false; return;
+  }
+  const t0 = Date.now();
+  const b2 = add('bot', '');
+  const tick = () => { b2.innerHTML = `<span class="wait">${engine === 'mock' ? '시험용으로 그리는 중…' : engine === 'internal' ? '사내 서버로 그림을 만드는 중… 보통 10~60초 걸립니다' : '실제 모델로 그림을 만드는 중… 보통 1~3분 걸립니다'} (${Math.round((Date.now() - t0) / 1000)}초)</span>`; };
+  tick(); const timer = setInterval(tick, 1000);
+  try {
+    const g = await post('/api/generate', { layout: plan.layout_result.layout, backend: engine, resolution: 1024, steps: 30, seed: null, enhance: true, use_negative: false, true_cfg: 1.0 });
+    clearInterval(timer);
+    const snapped = g.placed.filter(p => p.snapped).length, shaped = plan.layout_result.layout.slots.filter(s => s.shape !== 'none').length;
+    b2.innerHTML = `완성했습니다. ${engine === 'mock' ? '시험용 엔진' : engine === 'internal' ? '사내 서버' : '실제 모델'} · ${g.elapsed_sec}초 · seed ${g.seed}${shaped && engine !== 'internal' ? ` · 말풍선·띠 ${shaped}개 중 ${snapped}개는 그림에서 찾아 맞춤` : ''}${g.notes && g.notes.length ? ' · ' + esc(g.notes.join(' ')) : ''}` +
+      `<div class="imgs" id="imgs-${g.job_id}"><figure><figcaption>한글 합성 결과</figcaption><img src="${api(g.final_url)}" alt=""></figure></div>` +
+      `<div class="tools"><button data-toggle="${g.job_id}" data-base="${api(g.base_url)}">글자 없는 원본도 보기</button><a href="${api(g.final_url)}" download>결과 내려받기</a></div>` +
+      `<details class="placed"><summary>배치 정보 · 실제 사용된 프롬프트</summary><pre>${esc(g.placed.map(p => `${p.id.padEnd(14)} ${p.snapped ? '스냅' : '계획'} box=${p.box_px.join(',')} ${p.font_size}px ${p.lines}줄  "${p.text}"`).join('\n'))}\n\n${esc(g.prompt_used)}</pre></details>`;
+    b2.querySelector('[data-toggle]').onclick = (ev) => {
+      const box = $('#imgs-' + ev.target.dataset.toggle);
+      if (box.classList.toggle('two')) { const f = document.createElement('figure'); f.innerHTML = `<figcaption>모델 생성 원본 (글자 없음)</figcaption><img src="${ev.target.dataset.base}" alt="">`; box.prepend(f); ev.target.textContent = '원본 숨기기'; }
+      else { box.querySelector('figure').remove(); ev.target.textContent = '글자 없는 원본도 보기'; }
+    };
+    $('#log').scrollTop = $('#log').scrollHeight;
+  } catch (e) {
+    clearInterval(timer);
+    b2.className = 'bubble err'; b2.textContent = '그림 생성에 실패했습니다: ' + e.message + (engine !== 'mock' ? '\n위의 엔진을 "시험용"으로 바꾸면 자리·합성만 바로 확인할 수 있습니다.' : '');
+  } finally { busy = false; $('#send').disabled = false; $('#input').focus(); }
+}
+
+$('#send').onclick = () => { const t = $('#input').value; $('#input').value = ''; send(t); };
+$('#input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#send').click(); } });
+document.querySelectorAll('.examples button').forEach(b => b.onclick = () => { $('#input').value = b.dataset.ex; $('#input').focus(); });
+
+$('#apiBase').value = API; $('#apiApply').onclick = () => { location.search = '?api=' + encodeURIComponent($('#apiBase').value.trim()); };
+(async () => {
+  try { health = await (await fetch(api('/api/health'))).json(); }
+  catch (e) {
+    add('bot', 'API 서버에 연결하지 못했습니다. 위 헤더의 API 칸에 서버 주소(예: http://127.0.0.1:8090)를 넣고 적용을 누르세요.', 'err');
+    $('#llm').textContent = '문구 뽑기: 연결 안 됨'; $('#llm').classList.add('warn');
+    return;
+  }
+  const eng = $('#engine');
+  if (health.available.includes('local')) { const o = document.createElement('option'); o.value = 'local'; o.textContent = '사내 GPU 직접 실행'; eng.prepend(o); }
+  if (health.available.includes('internal')) { const o = document.createElement('option'); o.value = 'internal'; o.textContent = '사내 서버 (Qwen-Image, 10~60초)'; eng.prepend(o); }
+  eng.value = health.available.includes('internal') ? 'internal' : (health.available.includes(health.backend) ? health.backend : 'mock');
+  // 샘플 질의 버튼을 서버 목록으로 채운다
+  try {
+    const sl = await (await fetch(api('/api/samples'))).json();
+    const ex = document.querySelector('.examples'); ex.innerHTML = '';
+    sl.forEach(x => { const b = document.createElement('button'); b.dataset.ex = x.chat; b.textContent = x.title; b.onclick = () => { $('#input').value = x.chat; $('#input').focus(); }; ex.appendChild(b); });
+  } catch (e) {}
+  $('#llm').textContent = '문구 뽑기: ' + (health.llm ? '언어 모델' : '규칙만 (LLM 설정 없음)');
+  if (!health.llm) $('#llm').classList.add('warn');
+})();
+</script>
+</body>
+</html>
